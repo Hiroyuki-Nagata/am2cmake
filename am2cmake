@@ -1,6 +1,5 @@
 #!/usr/bin/env ruby
-
-
+# -*- coding: utf-8 -*-
 NoTarget   = 0
 Executable = 1
 StaticLib  = 2
@@ -472,6 +471,9 @@ class CMakeFile
    end
 
    def parseLine(line)
+      # encoding is UTF-8
+      line.force_encoding('UTF-8')
+
       if line =~ /^\s*METASOURCES\s*=\s*AUTO\s*$/
          @automoc=true
          return
