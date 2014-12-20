@@ -1059,6 +1059,7 @@ class CMakeFile
             url=""
             lang="C"
             setHash = Hash.new()
+            boolHash = Hash.new()
 
             #
             # parse configure.ac
@@ -1106,11 +1107,21 @@ class CMakeFile
                   end
                end
                
-               # parse AC_SUBST ( only non nested text )
+               # parse AC_SUBST ( only not nested text )
                if conf.start_with?("AC_SUBST")
                   /AC_SUBST\((.*),.*\[(.*)\].*\)/ =~ conf
                   setHash[$1]=$2
                end
+               # parse AM_CONDITIONAL ( only not nested text )
+               if conf.start_with?("AM_CONDITIONAL")
+                  /AM_CONDITIONAL\((.*),(.*)\)/ =~ conf
+                  key=$1
+                  val=$2
+                  if val.strip == "true" || val.strip == "false"
+                     boolHash[key.strip]=val.strip
+                  end                  
+               end
+
                # parse AC_PROG_CXX, AC_PROG_CC, AC_PROG_C
                if conf.strip=="AC_PROG_CXX" || conf.strip=="AC_PROG_CC"
                   lang = "CXX"
@@ -1128,7 +1139,16 @@ class CMakeFile
                setHash.each{|key, value|
                   # empty check
                   if !key.nil? && !key.empty?
-                     file.printf("set(%s %s)\n", key, value)
+                     file.printf("set(%s ON CACHE STRING \"%s\" FORCE)\n", key, value)
+                  end
+               }
+               file.print("\n")
+            end
+            if ! boolHash.empty?
+               boolHash.each{|key, value|
+                  # empty check
+                  if !key.nil? && !key.empty?
+                     file.printf("set(%s ON CACHE BOOL \"%s\" FORCE)\n", key, value)
                   end
                }
                file.print("\n")
