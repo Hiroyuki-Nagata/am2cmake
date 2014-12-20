@@ -1054,7 +1054,9 @@ class CMakeFile
             # configure.ac set element
             project=""
             version=""
-            mail=""
+            bug_report=""
+            tarname=""
+            url=""
             lang="C"
             setHash = Hash.new()
 
@@ -1062,12 +1064,46 @@ class CMakeFile
             # parse configure.ac
             #
             while conf = configure.gets
-               # parse AC_INIT([$project], [$version], [$mail])
+               # parse AC_INIT ($package, $version, [$bug-report], [$tarname], [$url])
                if conf.start_with?("AC_INIT")
-                  /AC_INIT\(.*\[(.*)\].*,.*\[(.*)\],.*\[(.*)\].*\)/ =~ conf
-                  project = $1
-                  version = $2
-                  mail    = $3
+
+                  /AC_INIT\((.*)\)/ =~ conf
+                  conf = $1
+                  acInit = conf.split(",")
+
+                  acInit.each_with_index do |entry, i|
+                     element = entry.strip
+                     /\[(.*)\]/ =~ element
+                     element = $1
+
+                     case i
+                        when 0 then
+                        project = element
+                        when 1 then
+                        version = element
+                        when 2 then
+                        bug_report = element
+                        when 3 then
+                        tarname = element
+                        when 4 then
+                        url = element
+                     else
+                        print "ERROR: AC_INIT format is wrong\n"
+                     end
+                  end
+               
+                  setHash["PACKAGE"]           = project.downcase
+                  setHash["PACKAGE_NAME"]      = project
+                  setHash["PACKAGE_STRING"]    = "#{project} #{version}"
+                  setHash["PACKAGE_TARNAME"]   = tarname.empty? ? project.downcase : tarname
+                  setHash["PACKAGE_VERSION"]   = version
+
+                  if ! bug_report.empty?
+                     setHash["PACKAGE_BUGREPORT"] = bug_report
+                  end
+                  if ! url.empty?
+                     setHash["PACKAGE_URL"]       = url
+                  end
                end
                
                # parse AC_SUBST ( only non nested text )
