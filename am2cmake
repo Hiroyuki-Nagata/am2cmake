@@ -1033,14 +1033,72 @@ class CMakeFile
       @lines.each{ |line| file.printf("#%s", line)}
 
    end
+
+   def createListsFileConfigureAC
+
+      file=File.new(@listsFile, "w+");
+
+      if @amFile=="Makefile.am" # the toplevel Makefile.am
+         if File.exist?("configure.ac") || File.exist?("configure.in")
+
+            print "### -- configure.ac is exist -- ###\n"
+
+            if File.exist?("configure.ac")
+               configure=File.new("configure.ac", "r");
+            elsif File.exist?("configure.in")
+               configure=File.new("configure.in", "r");
+            end
+
+            while conf = configure.gets
+               # parse AC_INIT([$project], [$version], [$mail])
+               if conf.start_with?("AC_INIT")
+                  /AC_INIT\(.*\[(.*)\].*,.*\[(.*)\],.*\[(.*)\].*\)/ =~ conf
+                  project = $1
+                  version = $2
+                  mail    = $3
+                  file.printf("project(%s %s)\n", project, version)
+                  file.print("\n")
+               end
+            end
+
+            configure.close()
+         end
+      end
+
+      if !@configHeaders.empty?
+         @configHeaders.each{ |header| file.printf("configure_file(${CMAKE_CURRENT_SOURCE_DIR}/#{header}.cmake ${CMAKE_CURRENT_BINARY_DIR}/#{header})\n\n") }
+      end
+
+      if not @subDirs.empty?
+         @subDirs.each{ |dir| file.printf("add_subdirectory(%s)\n", dir)}
+         file.printf("\n")
+      end
+
+      if not @skippedSubDirs.empty?
+         @skippedSubDirs.each{ |dir| file.printf("message(STATUS \"${CMAKE_CURRENT_SOURCE_DIR}: skipped subdir %s\")\n", dir)}
+      end
+
+      # debug
+      file.close()
+      file=File.new(@listsFile, "r");
+
+      print("### -- #{@listsFile} -- ### START\n")
+      while line = file.gets
+         print line
+      end
+      print("### -- #{@listsFile} -- ### END\n")
+      file.close
+   end
 end
 
 def convertAmFile(amFile)
    cmake=CMakeFile.new(amFile)
    if $buildType==BuildKDE4
       cmake.createKDE4ListsFile
-   else
+   elsif $buildType==BuildKDE3
       cmake.createKDE3ListsFile
+   else
+      cmake.createListsFileConfigureAC
    end
 end
 
@@ -1067,7 +1125,8 @@ if (ARGV.length==1)
    elsif ARGV[0]=="--version"
       printf("am2cmake (C) 2005-2008, Alexander Neundorf\n")
       printf("am2cmake (C) 2005-2008, Laurent Montel\n")
-      printf("Version 0.4, June 9th, 2008\n");
+      printf("am2cmake (C) 2014,      Hiroyuki Nagata\n")
+      printf("Version 0.5, December 20th, 2014\n");
       exit
    else
       printf("Invalid argument, try --help\n")
@@ -1090,4 +1149,6 @@ $configHeaders.each{|inFile| infoFile.printf("%s\n", inFile)}
 infoFile.printf("\n.in.in-Files\n")
 $configInIns.each{|inFile| infoFile.printf("%s\n", inFile)}
 
-Dir["**/Makefile.am"].each{ |currentFile| convertAmFile(currentFile)}
+Dir["**/Makefile.am"].each{ |currentFile| 
+   convertAmFile(currentFile)
+}
