@@ -1060,6 +1060,7 @@ class CMakeFile
             lang="C"
             setHash = Hash.new()
             boolHash = Hash.new()
+            configure_state = Array.new()
 
             #
             # parse configure.ac
@@ -1105,12 +1106,16 @@ class CMakeFile
                   if ! url.empty?
                      setHash["PACKAGE_URL"]       = url
                   end
+
+                  next
                end
                
                # parse AC_SUBST ( only not nested text )
                if conf.start_with?("AC_SUBST")
                   /AC_SUBST\((.*),.*\[(.*)\].*\)/ =~ conf
                   setHash[$1]=$2
+
+                  next
                end
                # parse AM_CONDITIONAL ( only not nested text )
                if conf.start_with?("AM_CONDITIONAL")
@@ -1119,12 +1124,23 @@ class CMakeFile
                   val=$2
                   if val.strip == "true" || val.strip == "false"
                      boolHash[key.strip]=val.strip
-                  end                  
+                  end
+
+                  next
                end
 
                # parse AC_PROG_CXX, AC_PROG_CC, AC_PROG_C
                if conf.strip=="AC_PROG_CXX" || conf.strip=="AC_PROG_CC"
                   lang = "CXX"
+                  
+                  next
+               end
+
+               # write out comment as is
+               if conf.start_with?("#")
+                  configure_state.push(conf)
+               else
+                  configure_state.push("# " + conf)
                end
             end
 
@@ -1153,6 +1169,11 @@ class CMakeFile
                }
                file.print("\n")
             end
+            if ! configure_state.empty?
+               configure_state.each{|line|
+                  file.printf("%s", line)
+               }
+            end            
 
             configure.close()
          end
